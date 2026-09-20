@@ -1,0 +1,6 @@
+{
+  "name": "CareBridge Emergency Healthcare Navigator",
+  "description": "Mission-critical multilingual emergency healthcare navigation and triage routing system connecting patients in medical distress with verified hospitals, ICU beds, and emergency dispatch.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
