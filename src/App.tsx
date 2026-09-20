@@ -125,19 +125,21 @@ export default function App() {
     triageResult,
     hospital,
     ambulanceDispatched,
+    specializedDispatch,
   }: {
     triageResult: DistressTriageResult;
     hospital: Hospital;
     ambulanceDispatched: boolean;
+    specializedDispatch?: Partial<IncomingEmergencyDispatch>;
   }) => {
-    const handshakeToken = `CB-${Math.floor(1000 + Math.random() * 9000)}-T${triageResult.triageLevel}`;
+    const handshakeToken = specializedDispatch?.digitalHandshakeToken || `CB-${Math.floor(1000 + Math.random() * 9000)}-T${triageResult.triageLevel}`;
     const isCitizen = currentUser && currentUser.role === 'patient';
     
     const newDispatch: IncomingEmergencyDispatch = {
       id: `disp-${Date.now()}`,
-      patientName: isCitizen ? currentUser.name : 'Emergency Transit Patient',
-      patientAge: isCitizen ? 52 : 58,
-      patientGender: isCitizen ? 'M' : 'M',
+      patientName: specializedDispatch?.patientName || (isCitizen ? currentUser.name : (specializedDispatch?.emergencyCategory === 'pregnancy' ? 'Sunita Mehra' : specializedDispatch?.emergencyCategory === 'road_accident' ? 'Vikram Choudhary' : 'Emergency Transit Patient')),
+      patientAge: specializedDispatch?.patientAge || (isCitizen ? 52 : (specializedDispatch?.emergencyCategory === 'pregnancy' ? 28 : specializedDispatch?.emergencyCategory === 'road_accident' ? 34 : 58)),
+      patientGender: specializedDispatch?.patientGender || (specializedDispatch?.emergencyCategory === 'pregnancy' ? 'F' : 'M'),
       triageLevel: triageResult.triageLevel,
       symptoms: isCitizen && currentUser.bloodGroup 
         ? [...triageResult.keySignals, `Blood: ${currentUser.bloodGroup}`] 
@@ -145,11 +147,12 @@ export default function App() {
       sbar: triageResult.sbar,
       hospitalTargetId: hospital.id,
       hospitalName: hospital.name,
-      ambulanceEtaMinutes: hospital.etaMinutes,
+      ambulanceEtaMinutes: specializedDispatch?.ambulanceEtaMinutes || hospital.etaMinutes,
       status: 'Pre-Arrival Alert',
       digitalHandshakeToken: handshakeToken,
-      phone: isCitizen ? (currentUser.phone || '+91 98450 12345') : '+91 98201 55432',
+      phone: specializedDispatch?.phone || (isCitizen ? (currentUser.phone || '+91 98450 12345') : '+91 98201 55432'),
       timestamp: new Date().toLocaleTimeString(),
+      ...specializedDispatch,
     };
 
     // Update state immediately
@@ -275,6 +278,8 @@ export default function App() {
               setShowQuickSosModal(true);
             }}
             onOpenEmergencyContacts={() => setIsEmergencyContactsOpen(true)}
+            hospitals={hospitals}
+            onDispatchPatient={handleDispatchPatient}
           />
         )}
 

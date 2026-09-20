@@ -17,6 +17,15 @@ export interface SBARCard {
   recommendation: string;
 }
 
+export interface InterimTransitSolution {
+  headline: string;
+  immediateActions: string[];
+  enRouteCare: string[];
+  criticalAvoid: string[];
+  vitalMonitoring: string[];
+  arrivalPrep: string[];
+}
+
 export interface DistressTriageResult {
   detectedLanguage: string;
   originalText: string;
@@ -27,6 +36,7 @@ export interface DistressTriageResult {
   urgencyReasoning: string;
   requiredSpecialties: string[];
   immediateFirstAidGuidance: string[];
+  interimTransitSolution?: InterimTransitSolution;
   safetyDisclaimer: string;
   sbar: SBARCard;
   suggestedFacilityType: string;
@@ -75,12 +85,14 @@ export interface Hospital {
   name: string;
   address: string;
   distanceKm: number;
+  distance?: string;
   etaMinutes: number;
   lat: number;
   lng: number;
   type: 'Govt Super-Specialty' | 'Private Multi-Specialty' | 'Trauma & Emergency Center' | 'Community Hospital';
   verified: boolean;
   contactNumber: string;
+  phone?: string;
   emergencyDeskDirect: string;
   icuBedsTotal: number;
   icuBedsAvailable: number;
@@ -124,6 +136,66 @@ export interface Pharmacy {
   essentialMedicines: string[];
 }
 
+export type EmergencySectionType = 'general' | 'pregnancy' | 'road_accident' | 'hub';
+
+export interface OnboardNurseInfo {
+  name: string;
+  designation: string;
+  badgeId: string;
+  phone: string;
+  certifications: string[];
+  equipmentList: string[];
+}
+
+export interface HospitalNetNotification {
+  sent: boolean;
+  sentAt: string;
+  receivingHospital: string;
+  receivingWard: string;
+  status: 'Transmitted' | 'Acknowledged by OB-GYN' | 'Delivery Room Prepped';
+  liveTelemetryChannel: string;
+  token: string;
+}
+
+export interface PoliceStationNotification {
+  stationName: string;
+  jurisdictionZone: string;
+  district: string;
+  accidentLocation: string;
+  gpsCoordinates: { lat: number; lng: number };
+  firIncidentDiaryNumber: string;
+  pcrPhone: string;
+  sentAt: string;
+  status: 'Transmitted to Police Station' | 'PCR Van Dispatched' | 'Corridor Clear';
+  destinationHospitalSent: string;
+  destinationHospitalAddress: string;
+  casualtyMlcDeskToken: string;
+}
+
+export interface PregnancyEmergencyData {
+  gestationWeeks?: number;
+  trimester?: string;
+  waterBroken?: boolean;
+  contractionInterval?: string;
+  vaginalBleeding?: boolean;
+  fetalMovementAlert?: boolean;
+  preEclampsiaAlert?: boolean;
+  gravidaPara?: string;
+  expectedDeliveryDate?: string;
+}
+
+export interface RoadAccidentEmergencyData {
+  collisionType: string;
+  vehicleType: string;
+  traumaSigns: string[];
+  helmetSeatbeltUsed?: boolean;
+  unconscious?: boolean;
+  severeBleeding?: boolean;
+  trappedInVehicle?: boolean;
+  accidentSpotLandmark: string;
+  destinationHospitalName: string;
+}
+
 export interface IncomingEmergencyDispatch {
   id: string;
   patientName: string;
@@ -139,6 +211,14 @@ export interface IncomingEmergencyDispatch {
   hospitalName?: string;
   ambulanceDispatched?: boolean;
   ambulanceEtaMinutes: number;
+  emergencyCategory?: EmergencySectionType;
+  // Specialized Pregnancy Emergency fields
+  onboardNurse?: OnboardNurseInfo;
+  hospitalNetNotification?: HospitalNetNotification;
+  pregnancyDetails?: PregnancyEmergencyData;
+  // Specialized Road Accident Emergency fields
+  policeStationNotification?: PoliceStationNotification;
+  accidentDetails?: RoadAccidentEmergencyData;
   patientLocation?: {
     lat: number;
     lng: number;

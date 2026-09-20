@@ -22,7 +22,12 @@ import {
   Volume2,
   Mic,
   UserCheck,
-  Lock
+  Lock,
+  Baby,
+  Car,
+  ShieldAlert,
+  Radio,
+  MapPin
 } from 'lucide-react';
 
 interface HospitalPortalViewProps {
@@ -420,6 +425,143 @@ export const HospitalPortalView: React.FC<HospitalPortalViewProps> = ({
                   </p>
                 </div>
               </div>
+
+              {/* SPECIALIZED SECTION 1: PREGNANCY EMERGENCY TELEMETRY & ONBOARD NURSE */}
+              {(selectedDispatch.emergencyCategory === 'pregnancy' || selectedDispatch.onboardNurse || selectedDispatch.hospitalNetNotification) && (
+                <div className="p-4 bg-gradient-to-br from-pink-950/50 via-slate-950 to-slate-900 rounded-xl border border-pink-500/40 space-y-3">
+                  <div className="flex items-center justify-between border-b border-pink-500/20 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-pink-500/20 border border-pink-500/40 flex items-center justify-center">
+                        <Baby className="w-4 h-4 text-pink-400" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-pink-300">
+                          Maternity Emergency: Onboard Nurse &amp; Hospital Net Notification
+                        </span>
+                        <p className="text-[10px] text-pink-200/80">
+                          High-Priority Labour &amp; Delivery Protocol • NICU &amp; Obstetrician Pre-Alert
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">
+                      NET NOTIFIED
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {/* Onboard Nurse Details */}
+                    <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1.5">
+                      <span className="text-[11px] font-bold text-pink-300 flex items-center gap-1.5">
+                        <UserCheck className="w-3.5 h-3.5 text-pink-400" />
+                        Dedicated Onboard Nurse
+                      </span>
+                      <div className="space-y-0.5 text-slate-300 text-[11px]">
+                        <p className="font-semibold text-white">
+                          {selectedDispatch.onboardNurse?.name || 'Sister Shalini Verma, RN, RM'}
+                        </p>
+                        <p className="text-slate-400">
+                          Badge: <span className="font-mono text-pink-200">{selectedDispatch.onboardNurse?.badgeId || 'OBGYN-RN-4821'}</span> • {selectedDispatch.onboardNurse?.phone || '+91 98260 11234'}
+                        </p>
+                        <p className="text-emerald-400 text-[10px]">
+                          ✓ Sterile Delivery Kit, Doppler &amp; Resuscitator Active
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Hospital Net Notification Details */}
+                    <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1.5">
+                      <span className="text-[11px] font-bold text-pink-300 flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+                        Hospital Net Notification Status
+                      </span>
+                      <div className="space-y-0.5 text-slate-300 text-[11px]">
+                        <p>
+                          Target: <span className="font-semibold text-white">{selectedDispatch.hospitalNetNotification?.receivingWard || 'Labour OT & Delivery Suite'}</span>
+                        </p>
+                        <p className="text-slate-400">
+                          Net Token: <span className="font-mono text-pink-200">{selectedDispatch.hospitalNetNotification?.token || 'NET-LDR-7712'}</span>
+                        </p>
+                        <p className="text-cyan-300 text-[10px]">
+                          ✓ Obstetrician on-call pre-alerted • Bed &amp; Incubator warming
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedDispatch.pregnancyDetails && (
+                    <div className="text-[11px] p-2 bg-slate-900/60 rounded border border-pink-500/20 text-slate-300 flex flex-wrap gap-x-4 gap-y-1">
+                      <span><strong>Gestation:</strong> {selectedDispatch.pregnancyDetails.gestationWeeks || 38} Weeks</span>
+                      <span><strong>Water Broken:</strong> {selectedDispatch.pregnancyDetails.waterBroken ? 'Yes (Urgent)' : 'Intact'}</span>
+                      <span><strong>Contractions:</strong> {selectedDispatch.pregnancyDetails.contractionInterval || 'Every 2-3 mins'}</span>
+                      <span><strong>Fetal Alert:</strong> {selectedDispatch.pregnancyDetails.fetalMovementAlert ? 'Monitored' : 'Normal'}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SPECIALIZED SECTION 2: ROAD ACCIDENT EMERGENCY & POLICE STATION DIRECT ALERT */}
+              {(selectedDispatch.emergencyCategory === 'road_accident' || selectedDispatch.policeStationNotification) && (
+                <div className="p-4 bg-gradient-to-br from-amber-950/50 via-slate-950 to-slate-900 rounded-xl border border-amber-500/40 space-y-3">
+                  <div className="flex items-center justify-between border-b border-amber-500/20 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
+                        <Car className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-amber-300">
+                          Road Accident Incident: Direct Police Thana &amp; MLC Dispatch Alert
+                        </span>
+                        <p className="text-[10px] text-amber-200/80">
+                          Automated Police Jurisdiction Notification • Accident Spot &amp; Destination Hospital Link
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      POLICE DISPATCHED
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {/* Police Station Notification */}
+                    <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1.5">
+                      <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                        Jurisdiction Police Thana
+                      </span>
+                      <div className="space-y-0.5 text-slate-300 text-[11px]">
+                        <p className="font-semibold text-white">
+                          {selectedDispatch.policeStationNotification?.stationName || 'Palasia Police Station (Thana #14)'}
+                        </p>
+                        <p className="text-slate-400">
+                          Zone: {selectedDispatch.policeStationNotification?.jurisdictionZone || 'Zone 3'} • PCR: {selectedDispatch.policeStationNotification?.pcrPhone || '112 / 0731-2495000'}
+                        </p>
+                        <p className="text-amber-300 text-[10px]">
+                          GD/FIR Token: <span className="font-mono text-white">{selectedDispatch.policeStationNotification?.firIncidentDiaryNumber || 'GD-ACC-2026-9041'}</span> • PCR Van Dispatched
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Accident Spot & Destination Hospital */}
+                    <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1.5">
+                      <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                        Accident Spot &amp; Destination
+                      </span>
+                      <div className="space-y-0.5 text-slate-300 text-[11px]">
+                        <p className="text-slate-200">
+                          <span className="text-slate-400">Accident Location:</span> <strong className="text-amber-200">{selectedDispatch.accidentDetails?.accidentSpotLandmark || selectedDispatch.policeStationNotification?.accidentLocation || 'Palasia Square, AB Road'}</strong>
+                        </p>
+                        <p className="text-slate-200">
+                          <span className="text-slate-400">Patient Destination:</span> <strong className="text-emerald-300">{selectedDispatch.accidentDetails?.destinationHospitalName || selectedDispatch.hospitalName}</strong>
+                        </p>
+                        <p className="text-cyan-300 text-[10px]">
+                          ✓ Green corridor requested • Trauma ICU &amp; Orthopedic prepped
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

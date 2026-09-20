@@ -181,10 +181,55 @@ export const INITIAL_HOSPITALS: Hospital[] = [
   },
   {
     id: 'hosp-5',
+    name: 'Sanjeevani Mother, Child & Multi-Specialty Hospital',
+    address: 'Near Geeta Bhawan Square, A.B. Road, Indore, MP',
+    distanceKm: 2.7,
+    etaMinutes: 7,
+    lat: 22.7215,
+    lng: 75.8790,
+    type: 'Private Multi-Specialty',
+    verified: true,
+    isOpen24x7: true,
+    contactNumber: '+91 731 249 8000',
+    emergencyDeskDirect: '+91 731 249 8911',
+    icuBedsTotal: 25,
+    icuBedsAvailable: 7,
+    oxygenBedsTotal: 50,
+    oxygenBedsAvailable: 15,
+    generalBedsAvailable: 40,
+    ventilatorsAvailable: 5,
+    capabilities: [
+      '24/7 Maternity Emergency & Labour Room',
+      'Level-3 Neonatal ICU (NICU)',
+      'Emergency C-Section Ready OT',
+      'On-Duty Obstetrician & Neonatologist 24x7',
+      'Fetal Monitoring & Ultrasound',
+      'Oxygen Beds & Blood Bank Tie-up'
+    ],
+    specialtiesTags: ['Emergency', 'Maternity', 'ICU', 'Oxygen', 'NICU'],
+    traumaLevel: 2,
+    lastUpdatedMinutesAgo: 1,
+    image: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop&q=80',
+    estimatedCostRange: '₹ 4,000 - ₹ 10,000',
+    estimatedCostBreakdown: [
+      { service: 'Maternity Emergency Triage', costRange: '₹ 800 - 1,500' },
+      { service: 'Fetal Ultrasound & Monitoring', costRange: '₹ 1,500 - 3,000' },
+      { service: 'Labour Room Observation', costRange: '₹ 2,000 - 4,500' },
+      { service: 'NICU Incubator (per day)', costRange: '₹ 8,000 - 18,000' },
+    ],
+    whyFeatures: [
+      'Dedicated 24x7 Labour Ward & Delivery Resuscitation Room',
+      'Certified Onboard Nurse Ambulance Coordination Team',
+      'Level-3 NICU with Neonatologist on duty',
+      'Direct Net Notification handshake for instant delivery prep'
+    ]
+  },
+  {
+    id: 'hosp-6',
     name: 'GreenLife Community Health Center',
     address: 'Railway Station Road, Suburban Block B',
-    distanceKm: 2.1,
-    etaMinutes: 6,
+    distanceKm: 4.1,
+    etaMinutes: 12,
     lat: 19.0710,
     lng: 72.8710,
     type: 'Community Hospital',
@@ -342,11 +387,108 @@ export const LANGUAGE_OPTIONS = [
 
 export const INITIAL_DISPATCHES: IncomingEmergencyDispatch[] = [
   {
+    id: 'disp-mat-001',
+    patientName: 'Sunita Mehra',
+    patientAge: 28,
+    patientGender: 'F',
+    triageLevel: 1,
+    emergencyCategory: 'pregnancy',
+    symptoms: ['Active labour contractions (every 2-3 mins)', 'Amniotic water rupture', 'Gestation 38 weeks (Full Term)'],
+    sbar: {
+      situation: '28yo Primigravida at 38 weeks gestation in active phase of stage-1 labor with ruptured membranes.',
+      background: 'G1P0, Rh positive (O+). Clean antenatal records, no gestational diabetes.',
+      assessment: 'Imminent delivery within 30-45 mins. Cervix fully engaged, fetal heart rate 142 bpm stable.',
+      recommendation: 'Priority Code Pink ambulance dispatched. Pre-clear Labour Room Delivery Bay 2 and ready Neonatal Resuscitation warmer.'
+    },
+    hospitalTargetId: 'hosp-5',
+    hospitalName: 'Sanjeevani Mother, Child & Multi-Specialty Hospital',
+    ambulanceEtaMinutes: 5,
+    status: 'Pre-Arrival Alert',
+    digitalHandshakeToken: 'CB-PINK-8821',
+    phone: '+91 98260 77123',
+    timestamp: '10:48 AM',
+    onboardNurse: {
+      name: 'Sister Shalini Verma, RN, RM',
+      designation: 'Senior Obstetric & Neonatal Resuscitation Nurse',
+      badgeId: 'OBGYN-RN-4821',
+      phone: '+91 731 475 1902',
+      certifications: ['Advanced Midwifery & Obstetric Life Support (ALSO)', 'Neonatal Resuscitation Program (NRP)'],
+      equipmentList: ['Sterile Childbirth Kit', 'Portable Fetal Doppler (142 bpm)', 'Neonatal Bag-Valve-Mask', 'Maternal IV Oxytocin Line']
+    },
+    hospitalNetNotification: {
+      sent: true,
+      sentAt: '10:47 AM',
+      receivingHospital: 'Sanjeevani Mother, Child & Multi-Specialty Hospital',
+      receivingWard: 'Labour OT & Neonatal Delivery Wing',
+      status: 'Acknowledged by OB-GYN',
+      liveTelemetryChannel: 'wss://carebridge.health/maternity/pink-8821',
+      token: 'NET-OBGYN-IND-902'
+    },
+    pregnancyDetails: {
+      gestationWeeks: 38,
+      trimester: '3rd Trimester (Full Term)',
+      waterBroken: true,
+      contractionInterval: 'Every 2.5 minutes (Intense)',
+      vaginalBleeding: false,
+      fetalMovementAlert: false,
+      gravidaPara: 'G1P0',
+      expectedDeliveryDate: '2026-09-28'
+    }
+  },
+  {
+    id: 'disp-acc-002',
+    patientName: 'Vikram Choudhary',
+    patientAge: 34,
+    patientGender: 'M',
+    triageLevel: 1,
+    emergencyCategory: 'road_accident',
+    symptoms: ['High-speed bike collision with truck', 'Blunt head trauma', 'Compound open femur fracture', 'Profuse bleeding'],
+    sbar: {
+      situation: '34yo male motorcycle rider impacted by turning heavy vehicle near Palasia Square junction.',
+      background: 'Helmet shattered upon impact. No medical history known.',
+      assessment: 'Level-1 Polytrauma: severe open right femur fracture, suspected basal skull fracture, GCS 10/15.',
+      recommendation: 'Trauma ALS Ambulance with spine board dispatched. Direct intimation sent to Palasia Police Station & destination Trauma ER.'
+    },
+    hospitalTargetId: 'hosp-1',
+    hospitalName: 'Choithram Hospital & Research Centre (Trauma OT Level-1)',
+    ambulanceEtaMinutes: 4,
+    status: 'Ambulance En Route',
+    digitalHandshakeToken: 'CB-ACC-9110',
+    phone: '+91 97555 33412',
+    timestamp: '10:44 AM',
+    policeStationNotification: {
+      stationName: 'Palasia Police Station (Jurisdiction Thana #14)',
+      jurisdictionZone: 'East Zone Police Division, Indore',
+      district: 'Indore City Commissionerate',
+      accidentLocation: 'Palasia Square, Near AB Road Pillar 42, Indore',
+      gpsCoordinates: { lat: 22.7244, lng: 75.8839 },
+      firIncidentDiaryNumber: 'GD-ACC-IND-8842/2026',
+      pcrPhone: '112 / +91 731 249 1100',
+      sentAt: '10:43 AM',
+      status: 'PCR Van Dispatched',
+      destinationHospitalSent: 'Choithram Hospital Level-1 Trauma Emergency Center',
+      destinationHospitalAddress: 'Near M.G. Road, Indore, MP',
+      casualtyMlcDeskToken: 'MLC-TRM-IND-7701'
+    },
+    accidentDetails: {
+      collisionType: 'Motorcycle vs Commercial Truck',
+      vehicleType: 'Two-Wheeler (Hero Splendor)',
+      traumaSigns: ['Compound Right Femur Fracture', 'Head Laceration & Concussion', 'Active Blood Loss (~450ml)'],
+      helmetSeatbeltUsed: true,
+      unconscious: false,
+      severeBleeding: true,
+      trappedInVehicle: false,
+      accidentSpotLandmark: 'Palasia Square Traffic Junction (Under Metro Pillar 42)',
+      destinationHospitalName: 'Choithram Hospital & Research Centre (Trauma Center)'
+    }
+  },
+  {
     id: 'disp-001',
     patientName: 'Rajesh Sharma',
     patientAge: 58,
     patientGender: 'M',
     triageLevel: 1,
+    emergencyCategory: 'general',
     symptoms: ['Severe retrosternal chest pain', 'Diaphoresis (profuse sweating)', 'Acute dyspnea'],
     sbar: {
       situation: '58yo male experiencing crushing substernal chest pressure radiating to left jaw for 35 mins.',
@@ -355,7 +497,7 @@ export const INITIAL_DISPATCHES: IncomingEmergencyDispatch[] = [
       recommendation: 'Pre-clear Trauma resuscitation Bay 1. Prep 12-lead ECG, Aspirin 325mg chewable, ready Heparin protocol.'
     },
     hospitalTargetId: 'hosp-1',
-    hospitalName: 'Metro Apex Multi-Specialty & Trauma Center',
+    hospitalName: 'Choithram Hospital & Research Centre',
     ambulanceEtaMinutes: 7,
     status: 'Pre-Arrival Alert',
     digitalHandshakeToken: 'CB-9821-T1',
@@ -363,32 +505,12 @@ export const INITIAL_DISPATCHES: IncomingEmergencyDispatch[] = [
     timestamp: '10:42 AM'
   },
   {
-    id: 'disp-002',
-    patientName: 'Kavita Sundaram',
-    patientAge: 32,
-    patientGender: 'F',
-    triageLevel: 2,
-    symptoms: ['Open compound tibia fracture', 'Active moderate bleeding', 'Severe limb deformity'],
-    sbar: {
-      situation: '32yo female passenger in two-wheeler collision with road barrier.',
-      background: 'No known drug allergies. Tetanus shot status unknown.',
-      assessment: 'Grade II open lower leg fracture with moderate hemorrhage controlled by pressure dressing.',
-      recommendation: 'Prepare orthopedic trauma bay, urgent X-ray, IV Ceftriaxone, and analgesia.'
-    },
-    hospitalTargetId: 'hosp-1',
-    hospitalName: 'Metro Apex Multi-Specialty & Trauma Center',
-    ambulanceEtaMinutes: 14,
-    status: 'Triage Pre-Cleared',
-    digitalHandshakeToken: 'CB-4512-T2',
-    phone: '+91 97693 88190',
-    timestamp: '10:35 AM'
-  },
-  {
     id: 'disp-003',
     patientName: 'Master Aarav Patil',
     patientAge: 6,
     patientGender: 'M',
     triageLevel: 1,
+    emergencyCategory: 'general',
     symptoms: ['Acute stridor / wheezing', 'Perioral cyanosis (blue lips)', 'Severe intercostal retractions'],
     sbar: {
       situation: '6yo male presenting with severe status asthmaticus refractory to home inhaler.',
@@ -396,8 +518,8 @@ export const INITIAL_DISPATCHES: IncomingEmergencyDispatch[] = [
       assessment: 'Impending respiratory fatigue with oxygen desaturation.',
       recommendation: 'Pediatric high-flow oxygen, continuous nebulized Salbutamol/Ipratropium, prepare PICU bed.'
     },
-    hospitalTargetId: 'hosp-4',
-    hospitalName: 'Sanjeevani Mother & Child Emergency Hospital',
+    hospitalTargetId: 'hosp-5',
+    hospitalName: 'Sanjeevani Mother, Child & Multi-Specialty Hospital',
     ambulanceEtaMinutes: 11,
     status: 'Bed Reserved',
     digitalHandshakeToken: 'CB-7731-T1',

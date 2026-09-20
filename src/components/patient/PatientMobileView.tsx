@@ -6,11 +6,13 @@ import {
   BloodBank, 
   Pharmacy,
   AuthUser,
-  EmergencyContact
+  EmergencyContact,
+  IncomingEmergencyDispatch,
+  EmergencySectionType
 } from '../../types';
 import { LANGUAGE_OPTIONS, INITIAL_BLOOD_BANKS, INITIAL_PHARMACIES } from '../../data/hospitals';
-import { rankHospitals, formatTriageBadge } from '../../utils/triage';
-import { LANGUAGE_LOCALE_MAP, playEmergencyTone } from '../../utils/speech';
+import { rankHospitals, formatTriageBadge, categorizeProblem } from '../../utils/triage';
+import { LANGUAGE_LOCALE_MAP, playEmergencyTone, speakFirstAidInstruction } from '../../utils/speech';
 import {
   getStoredEmergencyContacts,
   getPrimaryEmergencyContact,
@@ -19,6 +21,7 @@ import {
 import { MapRoutingModal } from './MapRoutingModal';
 import { DigitalHandshakeModal } from './DigitalHandshakeModal';
 import { SmsPanicModal } from './SmsPanicModal';
+import { SpecializedEmergencyHub } from '../emergency/SpecializedEmergencyHub';
 import { 
   Mic, 
   MicOff, 
@@ -45,7 +48,13 @@ import {
   Sparkles,
   Award,
   Stethoscope,
-  Settings
+  Settings,
+  Volume2,
+  Car,
+  AlertOctagon,
+  Activity,
+  Baby,
+  Siren
 } from 'lucide-react';
 
 interface PatientMobileViewProps {
@@ -54,6 +63,7 @@ interface PatientMobileViewProps {
     triageResult: DistressTriageResult;
     hospital: Hospital;
     ambulanceDispatched: boolean;
+    specializedDispatch?: Partial<IncomingEmergencyDispatch>;
   }) => void;
   latestDispatchedId?: string | null;
   currentUser?: AuthUser | null;
@@ -93,6 +103,10 @@ export const PatientMobileView: React.FC<PatientMobileViewProps> = ({
   // Emergency contacts & auto-call state
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>(() => getStoredEmergencyContacts());
 
+  // Dedicated Emergency Sections State
+  const [activeEmergencySection, setActiveEmergencySection] = useState<EmergencySectionType>('pregnancy');
+  const [showSpecializedHub, setShowSpecializedHub] = useState<boolean>(true);
+
   useEffect(() => {
     const handleUpdate = () => {
       setEmergencyContacts(getStoredEmergencyContacts());
@@ -105,6 +119,8 @@ export const PatientMobileView: React.FC<PatientMobileViewProps> = ({
 
   // Auto-analyze distress input in background using Gemini without clicking
   const [autoAnalyzeEnabled, setAutoAnalyzeEnabled] = useState<boolean>(true);
+  const [patientTransitTab, setPatientTransitTab] = useState<'immediate' | 'enroute' | 'avoid' | 'vitals' | 'arrival'>('immediate');
+  const [patientTransitExpanded, setPatientTransitExpanded] = useState<boolean>(false);
 
   // Sub-tabs for bonus features
   const [activeTab, setActiveTab] = useState<'hospitals' | 'icu_tracker' | 'blood_banks' | 'pharmacies'>('hospitals');
@@ -128,6 +144,11 @@ export const PatientMobileView: React.FC<PatientMobileViewProps> = ({
 
   // Quick preset scenarios to test code-mixing and all Indian languages
   const QUICK_SCENARIOS = [
+    {
+      title: '🐍 Snakebite / Hindi (सर्पदंश)',
+      lang: 'hi' as const,
+      text: 'मुझे सांप ने काट लिया है पैर में दो दांत के निशान हैं और बहुत सूजन व असह्य दर्द हो रहा है।',
+    },
     {
       title: '🫀 Acute Cardiac / Hinglish',
       lang: 'hi' as const,
@@ -300,7 +321,41 @@ export const PatientMobileView: React.FC<PatientMobileViewProps> = ({
         setSelectedHospital(ranked[0]);
       }
     } catch (err) {
-      console.error('Triage analysis error:', err);
+      console.error('Triage analysis error, engaging resilient local fallback:', err);
+      try {
+        const cat = categorizeProblem(text, selectedLang);
+        const triageCat: 'Immediate / Critical' | 'Urgent' | 'Non-Urgent' = 
+          cat.urgencyLevel === 1 ? 'Immediate / Critical' : (cat.urgencyLevel === 2 ? 'Urgent' : 'Non-Urgent');
+        const fallbackResult: DistressTriageResult = {
+          detectedLanguage: cat.languageDetected,
+          originalText: text,
+          englishTranslation: text,
+          triageLevel: cat.urgencyLevel,
+          triageCategory: triageCat,
+          requiredSpecialties: cat.suggestedFacilityTags.map(t => t.label),
+          keySignals: cat.symptoms,
+          urgencyReasoning: `${cat.urgencyTitle}: ${cat.urgencySubtitle}`,
+          immediateFirstAidGuidance: cat.firstAidSteps,
+          interimTransitSolution: cat.interimTransitSolution,
+          safetyDisclaimer: 'Triage guidance only. In an emergency, call 108/112 immediately.',
+          suggestedFacilityType: cat.recommendedDepartment,
+          criticalGoldenHourAlert: cat.urgencyLevel === 1,
+          sbar: {
+            situation: `Patient presenting with ${cat.symptoms.join(', ')}. Urgency: Level ${cat.urgencyLevel} (${triageCat}).`,
+            background: `Reported distress text: "${text.slice(0, 100)}"`,
+            assessment: `${cat.urgencyTitle}: ${cat.urgencySubtitle}`,
+            recommendation: `Admit and evaluate at ${cat.recommendedDepartment}`,
+          },
+        };
+        setTriageResult(fallbackResult);
+        playEmergencyTone(fallbackResult.triageLevel === 1 ? 'alert' : 'success');
+        const ranked = rankHospitals(hospitals, fallbackResult);
+        if (ranked.length > 0) {
+          setSelectedHospital(ranked[0]);
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback triage execution error:', fallbackErr);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -452,6 +507,46 @@ export const PatientMobileView: React.FC<PatientMobileViewProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Dedicated Emergency Sections: Road Accident & Pregnancy Case */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-rose-300 flex items-center gap-1.5">
+              <Siren className="w-4 h-4 text-rose-500 animate-pulse" />
+              Specialized Emergency Options
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSpecializedHub(!showSpecializedHub)}
+            className="text-xs text-rose-400 hover:text-rose-300 font-bold underline cursor-pointer"
+          >
+            {showSpecializedHub ? 'Hide Section' : 'Show Emergency Options'}
+          </button>
+        </div>
+
+        {showSpecializedHub && (
+          <div className="py-2 flex justify-center">
+            <SpecializedEmergencyHub
+              hospitals={hospitals}
+              defaultSection={activeEmergencySection}
+              onClose={() => setShowSpecializedHub(false)}
+              onDispatchPatient={({ triageResult: tr, hospital: hosp, ambulanceDispatched: amb, specializedDispatch: spec }) => {
+                onDispatchPatient({
+                  triageResult: tr,
+                  hospital: hosp,
+                  ambulanceDispatched: amb,
+                  specializedDispatch: spec
+                });
+                setAmbulanceDispatched(true);
+                setSbarSent(true);
+                setSelectedHospital(hosp);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* AI Problem Auto-Analyzer & Hospital Suggester Hero Card */}
@@ -716,18 +811,300 @@ export const PatientMobileView: React.FC<PatientMobileViewProps> = ({
               </div>
             </div>
 
-            {/* Immediate First-Aid Steps */}
-            <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1.5">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Immediate Caregiver First-Aid (While En Route):
-              </span>
-              <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
-                {triageResult.immediateFirstAidGuidance.map((step, idx) => (
-                  <li key={idx}>{step}</li>
-                ))}
-              </ul>
-            </div>
+            {/* Recommended Clinical Solution & Temporary Transit Solution (Right below the problem) */}
+            {(() => {
+              const transitSol = triageResult.interimTransitSolution || categorizeProblem(inputText, selectedLang).interimTransitSolution;
+              return (
+                <div id="patient-view-solution-section" className="space-y-3">
+                  {/* Primary Clinical Urgency Banner */}
+                  <div className="p-3.5 bg-gradient-to-b from-amber-950/40 to-slate-950 rounded-xl border border-amber-500/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="text-sm">💡</span>
+                        Recommended Clinical Solution (तत्काल समाधान):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = `Urgency Level ${triageResult.triageLevel}. ${triageResult.urgencyReasoning}. First aid: ${triageResult.immediateFirstAidGuidance.join('. ')}`;
+                          speakFirstAidInstruction(text, selectedLang);
+                        }}
+                        className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-[10px] font-mono flex items-center gap-1 transition-all"
+                        title="Listen to clinical solution instructions"
+                      >
+                        <Volume2 className="w-3 h-3 text-amber-300" />
+                        <span>Audio</span>
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-100 font-medium">
+                      {triageResult.urgencyReasoning}
+                    </div>
+
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide block pt-1">
+                      Immediate First-Aid Steps (तुरंत क्या करें):
+                    </span>
+                    <ul className="text-xs text-slate-200 space-y-1.5 list-none">
+                      {triageResult.immediateFirstAidGuidance.map((step, idx) => (
+                        <li key={idx} className="flex items-start gap-2 bg-slate-900/80 p-2 rounded border border-slate-800">
+                          <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <span className="leading-snug">{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Temporary Transit Care Till Hospital Arrival */}
+                  {transitSol && (
+                    <div className="p-3.5 bg-gradient-to-br from-slate-900 via-slate-900/95 to-blue-950/40 rounded-xl border border-blue-500/40 space-y-2.5 shadow-lg">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                            <Car className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-blue-300 uppercase tracking-wider block">
+                              Temporary Solution Till Hospital Reach
+                            </span>
+                            <span className="text-[11px] text-blue-200 font-medium leading-none">
+                              {transitSol.headline}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const readText = `Transit protocol: ${transitSol.headline}. Immediate: ${transitSol.immediateActions.join('. ')}. During travel: ${transitSol.enRouteCare.join('. ')}. Strictly avoid: ${transitSol.criticalAvoid.join('. ')}. Vital checks: ${transitSol.vitalMonitoring.join('. ')}. At hospital gate: ${transitSol.arrivalPrep.join('. ')}`;
+                              speakFirstAidInstruction(readText, selectedLang);
+                            }}
+                            className="px-2 py-0.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 text-[10px] font-mono flex items-center gap-1 transition-all"
+                            title="Listen to full transit solution"
+                          >
+                            <Volume2 className="w-3 h-3 text-blue-400" />
+                            <span>Read Aloud</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPatientTransitExpanded(!patientTransitExpanded)}
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"
+                          >
+                            {patientTransitExpanded ? 'Tabs' : 'Expand'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {!patientTransitExpanded ? (
+                        <div className="space-y-2">
+                          {/* Transit Category Buttons */}
+                          <div className="grid grid-cols-5 gap-1 p-0.5 bg-slate-950/80 border border-slate-800 rounded-lg">
+                            <button
+                              type="button"
+                              onClick={() => setPatientTransitTab('immediate')}
+                              className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                                patientTransitTab === 'immediate'
+                                  ? 'bg-amber-600 text-white shadow-xs'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              ⚡ 1st 5 Min
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPatientTransitTab('enroute')}
+                              className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                                patientTransitTab === 'enroute'
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              🚗 Travel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPatientTransitTab('avoid')}
+                              className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                                patientTransitTab === 'avoid'
+                                  ? 'bg-rose-600 text-white shadow-xs'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              🚫 Avoid
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPatientTransitTab('vitals')}
+                              className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                                patientTransitTab === 'vitals'
+                                  ? 'bg-purple-600 text-white shadow-xs'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              🩺 Vitals
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPatientTransitTab('arrival')}
+                              className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                                patientTransitTab === 'arrival'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              🏥 At Gate
+                            </button>
+                          </div>
+
+                          {/* Tab Content Display */}
+                          <div className="space-y-1.5 min-h-[80px]">
+                            {patientTransitTab === 'immediate' && (
+                              <div className="space-y-1.5 animate-in fade-in duration-200">
+                                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wide block">
+                                  ⚡ Immediate Stabilization Actions:
+                                </span>
+                                {transitSol.immediateActions.map((item, idx) => (
+                                  <div key={idx} className="bg-slate-950/80 border border-amber-900/50 rounded-lg p-2 text-xs flex items-start gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                      {idx + 1}
+                                    </span>
+                                    <span className="text-[11px] text-slate-200 leading-snug">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {patientTransitTab === 'enroute' && (
+                              <div className="space-y-1.5 animate-in fade-in duration-200">
+                                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide block">
+                                  🚗 Vehicle Transit Care (सफ़र के दौरान):
+                                </span>
+                                {transitSol.enRouteCare.map((item, idx) => (
+                                  <div key={idx} className="bg-slate-950/80 border border-blue-900/50 rounded-lg p-2 text-xs flex items-start gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                      ✓
+                                    </span>
+                                    <span className="text-[11px] text-slate-200 leading-snug">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {patientTransitTab === 'avoid' && (
+                              <div className="space-y-1.5 animate-in fade-in duration-200">
+                                <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wide block">
+                                  🚫 Strictly Avoid / Contraindications (भूलकर भी न करें):
+                                </span>
+                                {transitSol.criticalAvoid.map((item, idx) => (
+                                  <div key={idx} className="bg-slate-950/80 border border-rose-900/50 rounded-lg p-2 text-xs flex items-start gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                      ✕
+                                    </span>
+                                    <span className="text-[11px] font-medium text-rose-200 leading-snug">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {patientTransitTab === 'vitals' && (
+                              <div className="space-y-1.5 animate-in fade-in duration-200">
+                                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide block">
+                                  🩺 Monitor Vitals On The Way:
+                                </span>
+                                {transitSol.vitalMonitoring.map((item, idx) => (
+                                  <div key={idx} className="bg-slate-950/80 border border-purple-900/50 rounded-lg p-2 text-xs flex items-start gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                      •
+                                    </span>
+                                    <span className="text-[11px] text-slate-200 leading-snug">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {patientTransitTab === 'arrival' && (
+                              <div className="space-y-1.5 animate-in fade-in duration-200">
+                                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide block">
+                                  🏥 Hospital Gate Arrival Readiness:
+                                </span>
+                                {transitSol.arrivalPrep.map((item, idx) => (
+                                  <div key={idx} className="bg-slate-950/80 border border-emerald-900/50 rounded-lg p-2 text-xs flex items-start gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                      →
+                                    </span>
+                                    <span className="text-[11px] text-slate-200 leading-snug">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Expanded View */
+                        <div className="space-y-2 text-xs">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wide block">
+                              ⚡ Immediate Actions:
+                            </span>
+                            {transitSol.immediateActions.map((item, idx) => (
+                              <div key={idx} className="bg-slate-950/70 p-1.5 rounded border border-slate-800 text-[11px] text-slate-200">
+                                • {item}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide block">
+                              🚗 During Transit:
+                            </span>
+                            {transitSol.enRouteCare.map((item, idx) => (
+                              <div key={idx} className="bg-slate-950/70 p-1.5 rounded border border-slate-800 text-[11px] text-slate-200">
+                                • {item}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wide block">
+                              🚫 Strictly Avoid:
+                            </span>
+                            {transitSol.criticalAvoid.map((item, idx) => (
+                              <div key={idx} className="bg-slate-950/70 p-1.5 rounded border border-rose-900/40 text-[11px] text-rose-300">
+                                ✕ {item}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide block">
+                              🩺 Monitor Vitals:
+                            </span>
+                            {transitSol.vitalMonitoring.map((item, idx) => (
+                              <div key={idx} className="bg-slate-950/70 p-1.5 rounded border border-slate-800 text-[11px] text-slate-200">
+                                • {item}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide block">
+                              🏥 Hospital Arrival Prep:
+                            </span>
+                            {transitSol.arrivalPrep.map((item, idx) => (
+                              <div key={idx} className="bg-slate-950/70 p-1.5 rounded border border-slate-800 text-[11px] text-slate-200">
+                                → {item}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Standardized SBAR Card Preview */}
             <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">

@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Hospital, SupportedLanguage, AuthUser, UserRole, DistressTriageResult, EmergencyContact, TriageLevel } from '../../types';
+import { Hospital, SupportedLanguage, AuthUser, UserRole, DistressTriageResult, EmergencyContact, TriageLevel, EmergencySectionType } from '../../types';
 import { INITIAL_HOSPITALS } from '../../data/hospitals';
-import { SoundFX } from '../../utils/speech';
+import { SoundFX, speakFirstAidInstruction } from '../../utils/speech';
 import { categorizeProblem, CategorizedProblem } from '../../utils/triage';
 import {
   getStoredEmergencyContacts,
   getPrimaryEmergencyContact,
   dialPhoneNumber,
 } from '../../utils/emergencyContacts';
+import { SpecializedEmergencyHub } from '../emergency/SpecializedEmergencyHub';
+import { RoadAccidentBadgeIcon, PregnancyBadgeIcon } from '../emergency/EmergencyIllustrations';
 import { 
   User, 
   Building2, 
@@ -23,7 +25,17 @@ import {
   ArrowRight,
   PhoneCall,
   Star,
-  Settings
+  Settings,
+  Car,
+  ShieldAlert,
+  Activity,
+  Clock,
+  AlertOctagon,
+  Navigation,
+  X,
+  Baby,
+  Siren,
+  ChevronRight
 } from 'lucide-react';
 
 interface CareBridgeAppProps {
@@ -35,6 +47,8 @@ interface CareBridgeAppProps {
   onLogout?: () => void;
   onTriggerSos?: () => void;
   onOpenEmergencyContacts?: () => void;
+  hospitals?: Hospital[];
+  onDispatchPatient?: (payload: any) => void;
 }
 
 interface FacilityItem {
@@ -52,7 +66,7 @@ const FACILITIES_DATA: FacilityItem[] = [
     id: 'choithram',
     name: 'Choithram Hospital & Research Centre',
     distance: '2.3 km',
-    tags: [{ label: 'Emergency', isRed: true }, { label: 'ICU' }, { label: 'Oxygen' }, { label: 'Cardiology' }],
+    tags: [{ label: 'Emergency', isRed: true }, { label: 'Anti-Snake Venom (ASV)', isRed: true }, { label: 'ICU' }, { label: 'Oxygen' }, { label: 'Cardiology' }],
     phone: '+91 731 475 1000',
     address: 'Near M.G. Road, Indore, Madhya Pradesh',
     costRange: '₹5,000 – ₹12,000',
@@ -61,7 +75,7 @@ const FACILITIES_DATA: FacilityItem[] = [
     id: 'bombay',
     name: 'Bombay Hospital',
     distance: '3.6 km',
-    tags: [{ label: 'Emergency', isRed: true }, { label: 'ICU' }, { label: 'Trauma' }],
+    tags: [{ label: 'Emergency', isRed: true }, { label: 'Anti-Snake Venom (ASV)', isRed: true }, { label: 'ICU' }, { label: 'Trauma' }],
     phone: '+91 731 255 8866',
     address: 'Ring Road, IDA Scheme No 94, Indore, MP',
     costRange: '₹6,000 – ₹14,000',
@@ -94,6 +108,8 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
   onLogout,
   onTriggerSos,
   onOpenEmergencyContacts,
+  hospitals = INITIAL_HOSPITALS,
+  onDispatchPatient,
 }) => {
   // Screen index: 0 through 10 (11 screens exactly matching prototype)
   const [current, setCurrent] = useState<number>(0);
@@ -105,6 +121,10 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
 
   const [problemText, setProblemText] = useState<string>('mujhe bukhaar h');
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>(() => getStoredEmergencyContacts());
+
+  // Dedicated Emergency Sections modal state
+  const [showSpecializedModal, setShowSpecializedModal] = useState<boolean>(false);
+  const [specializedSection, setSpecializedSection] = useState<EmergencySectionType>('pregnancy');
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -135,6 +155,9 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
     ? geminiResult.immediateFirstAidGuidance 
     : categorized.firstAidSteps;
   const effectiveReasoning = geminiResult?.urgencyReasoning || categorized.urgencySubtitle;
+  const effectiveTransitSolution = geminiResult?.interimTransitSolution || categorized.interimTransitSolution;
+  const [activeTransitTab, setActiveTransitTab] = useState<'immediate' | 'enroute' | 'avoid' | 'vitals' | 'arrival'>('immediate');
+  const [expandAllTransit, setExpandAllTransit] = useState<boolean>(false);
 
   // Dynamically rank facilities according to acute condition & specialties
   const rankedFacilities = useMemo(() => {
@@ -142,10 +165,18 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
       let aScore = 0;
       let bScore = 0;
       const lowerProb = problemText.toLowerCase();
+      const isSnakeOrPoison = effectiveCategory.toLowerCase().includes('snake') || 
+        effectiveCategory.toLowerCase().includes('envenom') || 
+        effectiveCategory.toLowerCase().includes('सर्पदंश') ||
+        lowerProb.includes('saanp') || lowerProb.includes('saap') || lowerProb.includes('snake') || lowerProb.includes('सांप') || lowerProb.includes('poison') || lowerProb.includes('जहर');
       const isCardiac = effectiveLevel === 1 || effectiveCategory.toLowerCase().includes('cardiac') || lowerProb.includes('chest') || lowerProb.includes('chhati') || lowerProb.includes('seene');
       const isFever = effectiveCategory.toLowerCase().includes('fever') || lowerProb.includes('bukhar') || lowerProb.includes('bukhaar');
       const isTrauma = effectiveCategory.toLowerCase().includes('trauma') || lowerProb.includes('accident') || lowerProb.includes('haddi');
 
+      if (isSnakeOrPoison) {
+        if (a.tags.some(t => t.label === 'Anti-Snake Venom (ASV)' || t.label === 'Emergency' || t.label === 'ICU')) aScore += 75;
+        if (b.tags.some(t => t.label === 'Anti-Snake Venom (ASV)' || t.label === 'Emergency' || t.label === 'ICU')) bScore += 75;
+      }
       if (isCardiac) {
         if (a.tags.some(t => t.label === 'Cardiology' || t.label === 'Cardiac Care')) aScore += 60;
         if (b.tags.some(t => t.label === 'Cardiology' || t.label === 'Cardiac Care')) bScore += 60;
@@ -172,6 +203,36 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
       setSelectedFacility(rankedFacilities[0]);
     }
   }, [rankedFacilities]);
+
+  // Instant or on-demand AI analysis function
+  const triggerInstantAnalysis = async (customQuery?: string) => {
+    const query = (customQuery !== undefined ? customQuery : problemText).trim();
+    if (query.length < 2) {
+      showFeedback('Please enter or select symptoms to analyze');
+      return;
+    }
+    setIsGeminiAnalyzing(true);
+    try {
+      const res = await fetch('/api/triage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inputText: query,
+          languageCode: selectedLang,
+        }),
+      });
+      if (res.ok) {
+        const data: DistressTriageResult = await res.json();
+        setGeminiResult(data);
+        setLastAnalyzedQuery(query);
+        showFeedback(`Triage Analyzed: Level ${data.triageLevel} (${data.triageCategory})`);
+      }
+    } catch (err) {
+      console.warn('Gemini auto-analysis fallback:', err);
+    } finally {
+      setIsGeminiAnalyzing(false);
+    }
+  };
 
   // Debounced real-time AI Auto-Analysis using Gemini 3.8 Flash
   useEffect(() => {
@@ -489,32 +550,101 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
               <b className="ml-auto text-xl text-[#6b8193]">›</b>
             </div>
 
-            {/* Red Emergency Button (Auto-Calls Primary Emergency Contact!) */}
+            {/* Red Emergency Button (Opens Emergency Selection Hub) */}
             <div 
               id="btn-home-emergency"
               className="cb-emergency cb-red group cursor-pointer" 
               onClick={() => {
                 SoundFX.codeBlueAlarm();
-                if (onTriggerSos) {
-                  onTriggerSos();
-                } else {
-                  const primary = getPrimaryEmergencyContact();
-                  dialPhoneNumber(primary.phone);
-                  go(3);
-                }
+                setSpecializedSection('hub');
+                setShowSpecializedModal(true);
               }}
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2.5 text-left">
                   <span className="text-2xl animate-bounce">🚨</span>
                   <span>
-                    EMERGENCY AUTO-CALL<br />
+                    EMERGENCY HELP<br />
                     <small className="cb-small">
-                      Auto-calls {emergencyContacts.find(c => c.isPrimary)?.name || 'Primary Contact (108)'}
+                      Road Accident, Pregnancy &amp; SOS 112
                     </small>
                   </span>
                 </div>
                 <b className="text-2xl text-white">›</b>
+              </div>
+            </div>
+
+            {/* Dedicated Emergency Section matching user's screenshots */}
+            <div className="my-3.5 space-y-2.5 text-left">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-extrabold text-[#0f2444] uppercase tracking-wider flex items-center gap-1.5">
+                  <Siren className="w-4 h-4 text-red-600 animate-pulse" />
+                  <span>Emergency Category</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpecializedSection('hub');
+                    setShowSpecializedModal(true);
+                  }}
+                  className="text-[11px] font-bold text-red-600 hover:text-red-700 cursor-pointer"
+                >
+                  View All Options →
+                </button>
+              </div>
+
+              {/* Road Accident Card */}
+              <div
+                id="btn-quick-accident"
+                onClick={() => {
+                  setSpecializedSection('road_accident');
+                  setShowSpecializedModal(true);
+                }}
+                className="w-full bg-[#fff1f1] hover:bg-[#ffebeb] active:scale-[0.98] transition-all rounded-[22px] p-3.5 border border-[#fed7d7]/70 flex items-center justify-between cursor-pointer group shadow-2xs"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 group-hover:scale-105 transition-transform">
+                    <RoadAccidentBadgeIcon className="w-12 h-12" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-[#dc2626] text-sm sm:text-base leading-tight">
+                      Road Accident
+                    </h3>
+                    <p className="text-xs text-[#4a5568] font-normal leading-tight mt-0.5">
+                      Accident, injury, trauma
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[#dc2626] pr-1">
+                  <ChevronRight className="w-5 h-5 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Pregnancy Case Card */}
+              <div
+                id="btn-quick-pregnancy"
+                onClick={() => {
+                  setSpecializedSection('pregnancy');
+                  setShowSpecializedModal(true);
+                }}
+                className="w-full bg-[#f8f5fe] hover:bg-[#f3edfd] active:scale-[0.98] transition-all rounded-[22px] p-3.5 border border-[#e9d8fd]/70 flex items-center justify-between cursor-pointer group shadow-2xs"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 group-hover:scale-105 transition-transform">
+                    <PregnancyBadgeIcon className="w-12 h-12" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-[#4c1d95] text-sm sm:text-base leading-tight">
+                      Pregnancy Case
+                    </h3>
+                    <p className="text-xs text-[#4a5568] font-normal leading-tight mt-0.5">
+                      Labour pain, complications
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[#6d28d9] pr-1">
+                  <ChevronRight className="w-5 h-5 stroke-[2.5] group-hover:translate-x-1 transition-transform" />
+                </div>
               </div>
             </div>
 
@@ -617,8 +747,37 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
                 onChange={(e) => setProblemText(e.target.value)}
                 rows={2}
                 className="w-full bg-[#f7fbfe] border border-[#dceaf2] rounded-xl p-2.5 text-xs text-[#17324d] font-semibold focus:outline-none focus:border-[#0873d1]"
-                placeholder="Type your symptoms in Hindi or English (e.g., mujhe bukhaar h)..."
+                placeholder="Type your symptoms in Hindi or English (e.g., mujhe bukhar hai, saanp ne kaat liya)..."
               />
+
+              {/* One-Click Quick Presets for Instant Auto-Analyzer Testing */}
+              <div className="mt-2 pt-2 border-t border-[#edf3f8]">
+                <div className="text-[10px] text-[#6b8193] font-medium mb-1.5 flex items-center justify-between">
+                  <span>Quick Symptoms (एक क्लिक में जाँचें):</span>
+                  <span className="text-[9px] text-blue-600 font-semibold">Instant Triage</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: '🐍 सांप ने काट लिया', text: 'मुझे सांप ने काट लिया है हाथ में बहुत दर्द और सूजन है' },
+                    { label: '🫀 सीने में तेज दर्द', text: 'सीने में भारीपन, तेज दर्द और सांस फूलने की समस्या' },
+                    { label: '🔥 103° तेज बुखार', text: '3 दिन से तेज बुखार, कंपकंपी और सिरदर्द है' },
+                    { label: '🚗 सड़क दुर्घटना', text: 'सड़क दुर्घटना में गंभीर चोट और खून बह रहा है' },
+                    { label: '🤰 प्रसव पीड़ा', text: 'गर्भावस्था में तेज संकुचन और लेबर पेन शुरू हो गया' }
+                  ].map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setProblemText(chip.text);
+                        triggerInstantAnalysis(chip.text);
+                      }}
+                      className="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#f0f7fc] text-[#0873d1] border border-[#d2e6f4] hover:bg-[#0873d1] hover:text-white transition-all cursor-pointer shadow-2xs active:scale-95"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* AI Auto-Analyzer with Gemini (No click required) */}
@@ -640,6 +799,16 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
                       Live AI Triage Active
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => triggerInstantAnalysis()}
+                    disabled={isGeminiAnalyzing}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded border border-[#0873d1]/30 bg-white text-[#0873d1] hover:bg-[#0873d1] hover:text-white transition-colors flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                    title="Force immediate AI analysis"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Analyze Now
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -695,7 +864,7 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-[11px] text-[#6b8193] font-medium shrink-0">Recommended Care:</span>
                   <span className="text-xs font-semibold text-[#0c6b45] text-right">
-                    {geminiResult?.suggestedFacilityType || categorized.recommendedDepartment}
+                    {effectiveFacilityType}
                   </span>
                 </div>
 
@@ -706,26 +875,359 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-[#d8eaf6]">
-                <button
-                  id="btn-direct-hospital-nav"
-                  className="cb-btn text-xs py-2 px-2"
-                  style={{ margin: 0 }}
-                  onClick={() => {
-                    showFeedback(`Navigating to ${selectedFacility.name} (Matched by Gemini)`);
-                    go(4);
+              {/* ================================================================ */}
+              {/* RECOMMENDED SOLUTION SECTION (Right below the problem)           */}
+              {/* ================================================================ */}
+              <div id="auto-analyzer-solution-section" className="mt-3 pt-3 border-t-2 border-[#b8dcfa] bg-white/70 -mx-1 p-3 rounded-xl shadow-2xs">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base leading-none">💡</span>
+                    <div>
+                      <span className="text-xs font-black text-[#17324d] uppercase tracking-wide block">
+                        Recommended Clinical Solution
+                      </span>
+                      <span className="text-[10px] text-[#6b8193] leading-none">
+                        तत्काल समाधान व प्राथमिक उपचार (Immediate Action Plan)
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const textToSpeak = `${effectiveUrgency} Urgency. ${effectiveReasoning}. Transit Care Protocol: ${effectiveTransitSolution.headline}. Immediate actions: ${effectiveTransitSolution.immediateActions.join('. ')}. During transit: ${effectiveTransitSolution.enRouteCare.join('. ')}. Strictly avoid: ${effectiveTransitSolution.criticalAvoid.join('. ')}`;
+                      speakFirstAidInstruction(textToSpeak, selectedLang === 'hi' ? 'hi' : 'en');
+                      showFeedback('🔊 Playing transit care solution...');
+                    }}
+                    className="p-1 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0873d1] border border-blue-200 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95"
+                    title="Listen to solution instructions"
+                  >
+                    <Volume2 className="w-3 h-3 text-[#0873d1]" />
+                    <span>Listen</span>
+                  </button>
+                </div>
+
+                {/* Solution Urgency Callout Banner */}
+                <div 
+                  className="p-2.5 rounded-xl border mb-2.5 text-xs"
+                  style={{
+                    backgroundColor: effectiveUrgency === 'High' ? '#fff1f2' : (effectiveUrgency === 'Moderate' ? '#fffbeb' : '#f0fdf4'),
+                    borderColor: effectiveUrgency === 'High' ? '#fecdd3' : (effectiveUrgency === 'Moderate' ? '#fde68a' : '#bbf7d0'),
+                    color: effectiveUrgency === 'High' ? '#9f1239' : (effectiveUrgency === 'Moderate' ? '#92400e' : '#166534'),
                   }}
                 >
-                  Direct Hospital →
-                </button>
-                <button
-                  id="btn-review-triage"
-                  className="cb-btn cb-secondary text-xs py-2 px-2"
-                  style={{ margin: 0 }}
-                  onClick={() => go(2)}
-                >
-                  Full Triage Flow →
-                </button>
+                  <div className="font-extrabold flex items-center gap-1.5 mb-1 text-[11px]">
+                    <span>
+                      {effectiveUrgency === 'High' ? '🚨 CRITICAL SOLUTION:' : (effectiveUrgency === 'Moderate' ? '⚠️ URGENT SOLUTION:' : '🟢 ROUTINE SOLUTION:')}
+                    </span>
+                    <span className="font-bold">
+                      {effectiveUrgency === 'High' ? 'Immediate Golden Hour Hospital Transfer' : (effectiveUrgency === 'Moderate' ? 'Prompt Clinical Evaluation Within 2-4 Hours' : 'Standard Outpatient Consultation & Rest')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] opacity-95 leading-relaxed font-medium">
+                    {effectiveReasoning}
+                  </p>
+                </div>
+
+                {/* ================================================================ */}
+                {/* TEMPORARY TRANSIT CARE SOLUTION (TILL PERSON REACHES HOSPITAL)   */}
+                {/* ================================================================ */}
+                <div className="bg-gradient-to-br from-[#f0f8ff] to-[#f8fbfe] border-2 border-[#badefa] rounded-xl p-3 mb-3 shadow-2xs">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-[#0873d1] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <Car className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] font-black text-[#17324d] uppercase tracking-wide block leading-tight">
+                          Temporary Transit Care Till Hospital
+                        </span>
+                        <span className="text-[10px] text-[#0873d1] font-semibold leading-none">
+                          {effectiveTransitSolution.headline}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setExpandAllTransit(!expandAllTransit)}
+                      className="text-[9px] font-bold px-2 py-0.5 rounded bg-white border border-[#cde2f2] text-[#244a69] hover:bg-[#eaf4fc] shrink-0"
+                    >
+                      {expandAllTransit ? 'Show Tabs' : 'Expand All'}
+                    </button>
+                  </div>
+
+                  {!expandAllTransit ? (
+                    <div>
+                      {/* Transit Tabs Selector */}
+                      <div className="grid grid-cols-5 gap-1 p-0.5 bg-white border border-[#d6e7f4] rounded-lg mb-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTransitTab('immediate')}
+                          className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                            activeTransitTab === 'immediate'
+                              ? 'bg-amber-500 text-white shadow-2xs'
+                              : 'text-[#486581] hover:bg-slate-50'
+                          }`}
+                        >
+                          ⚡ 1st 5 Min
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTransitTab('enroute')}
+                          className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                            activeTransitTab === 'enroute'
+                              ? 'bg-blue-600 text-white shadow-2xs'
+                              : 'text-[#486581] hover:bg-slate-50'
+                          }`}
+                        >
+                          🚗 In-Transit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTransitTab('avoid')}
+                          className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                            activeTransitTab === 'avoid'
+                              ? 'bg-rose-600 text-white shadow-2xs'
+                              : 'text-[#486581] hover:bg-slate-50'
+                          }`}
+                        >
+                          🚫 Do NOT
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTransitTab('vitals')}
+                          className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                            activeTransitTab === 'vitals'
+                              ? 'bg-purple-600 text-white shadow-2xs'
+                              : 'text-[#486581] hover:bg-slate-50'
+                          }`}
+                        >
+                          🩺 Vitals
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTransitTab('arrival')}
+                          className={`py-1 px-0.5 rounded text-[9px] font-bold text-center transition-all ${
+                            activeTransitTab === 'arrival'
+                              ? 'bg-emerald-600 text-white shadow-2xs'
+                              : 'text-[#486581] hover:bg-slate-50'
+                          }`}
+                        >
+                          🏥 At Gate
+                        </button>
+                      </div>
+
+                      {/* Active Tab Content Display */}
+                      <div className="space-y-1.5 min-h-[90px]">
+                        {activeTransitTab === 'immediate' && (
+                          <div className="space-y-1.5 animate-in fade-in duration-200">
+                            <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wide block">
+                              ⚡ Immediate Actions (तुरंत प्राथमिक स्थिरीकरण):
+                            </span>
+                            {effectiveTransitSolution.immediateActions.map((item, idx) => (
+                              <div key={idx} className="bg-white border border-amber-200 rounded-lg p-2 text-xs flex items-start gap-2 shadow-2xs">
+                                <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <span className="text-[11px] font-medium text-[#17324d] leading-snug">
+                                  {item}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {activeTransitTab === 'enroute' && (
+                          <div className="space-y-1.5 animate-in fade-in duration-200">
+                            <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-wide block">
+                              🚗 During Vehicle Transit (गाड़ी/एंबुलेंस में देखभाल):
+                            </span>
+                            {effectiveTransitSolution.enRouteCare.map((item, idx) => (
+                              <div key={idx} className="bg-white border border-blue-200 rounded-lg p-2 text-xs flex items-start gap-2 shadow-2xs">
+                                <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-800 font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                  ✓
+                                </span>
+                                <span className="text-[11px] font-medium text-[#17324d] leading-snug">
+                                  {item}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {activeTransitTab === 'avoid' && (
+                          <div className="space-y-1.5 animate-in fade-in duration-200">
+                            <span className="text-[10px] font-extrabold text-rose-800 uppercase tracking-wide block">
+                              🚫 Critical Contraindications (भूलकर भी ये न करें):
+                            </span>
+                            {effectiveTransitSolution.criticalAvoid.map((item, idx) => (
+                              <div key={idx} className="bg-white border border-rose-200 rounded-lg p-2 text-xs flex items-start gap-2 shadow-2xs">
+                                <span className="w-4 h-4 rounded-full bg-rose-100 text-rose-700 font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                  ✕
+                                </span>
+                                <span className="text-[11px] font-semibold text-rose-900 leading-snug">
+                                  {item}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {activeTransitTab === 'vitals' && (
+                          <div className="space-y-1.5 animate-in fade-in duration-200">
+                            <span className="text-[10px] font-extrabold text-purple-800 uppercase tracking-wide block">
+                              🩺 Monitor Vitals On The Way (रास्ते में इन बातों पर ध्यान दें):
+                            </span>
+                            {effectiveTransitSolution.vitalMonitoring.map((item, idx) => (
+                              <div key={idx} className="bg-white border border-purple-200 rounded-lg p-2 text-xs flex items-start gap-2 shadow-2xs">
+                                <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-800 font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                  •
+                                </span>
+                                <span className="text-[11px] font-medium text-[#17324d] leading-snug">
+                                  {item}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {activeTransitTab === 'arrival' && (
+                          <div className="space-y-1.5 animate-in fade-in duration-200">
+                            <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wide block">
+                              🏥 Hospital Arrival Preparation (गेट पर पहुँचते ही):
+                            </span>
+                            {effectiveTransitSolution.arrivalPrep.map((item, idx) => (
+                              <div key={idx} className="bg-white border border-emerald-200 rounded-lg p-2 text-xs flex items-start gap-2 shadow-2xs">
+                                <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                  →
+                                </span>
+                                <span className="text-[11px] font-medium text-[#17324d] leading-snug">
+                                  {item}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Expand All View */
+                    <div className="space-y-2.5">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wide block">
+                          ⚡ Immediate Actions (पहले 5 मिनट):
+                        </span>
+                        {effectiveTransitSolution.immediateActions.map((item, idx) => (
+                          <div key={idx} className="bg-white/90 border border-amber-200 rounded p-1.5 text-[11px] text-[#17324d]">
+                            • {item}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-wide block">
+                          🚗 In Vehicle En Route (सफ़र के दौरान):
+                        </span>
+                        {effectiveTransitSolution.enRouteCare.map((item, idx) => (
+                          <div key={idx} className="bg-white/90 border border-blue-200 rounded p-1.5 text-[11px] text-[#17324d]">
+                            • {item}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-extrabold text-rose-800 uppercase tracking-wide block">
+                          🚫 Critical Contraindications (बिल्कुल न करें):
+                        </span>
+                        {effectiveTransitSolution.criticalAvoid.map((item, idx) => (
+                          <div key={idx} className="bg-white/90 border border-rose-200 rounded p-1.5 text-[11px] font-semibold text-rose-900">
+                            ✕ {item}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-extrabold text-purple-800 uppercase tracking-wide block">
+                          🩺 Monitor Vitals (जांच):
+                        </span>
+                        {effectiveTransitSolution.vitalMonitoring.map((item, idx) => (
+                          <div key={idx} className="bg-white/90 border border-purple-200 rounded p-1.5 text-[11px] text-[#17324d]">
+                            • {item}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wide block">
+                          🏥 Hospital Gate Prep (गेट पर):
+                        </span>
+                        {effectiveTransitSolution.arrivalPrep.map((item, idx) => (
+                          <div key={idx} className="bg-white/90 border border-emerald-200 rounded p-1.5 text-[11px] text-[#17324d]">
+                            → {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Top Matched Hospital Facility Solution */}
+                {rankedFacilities.length > 0 && (
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 mb-2.5 text-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wide block">
+                        🏥 Top Hospital Match for Solution:
+                      </span>
+                      <div className="font-extrabold text-[#17324d] text-xs leading-tight">
+                        {rankedFacilities[0].name}
+                      </div>
+                      <div className="text-[10px] text-[#486581]">
+                        {rankedFacilities[0].distance} • {rankedFacilities[0].costRange} • 24×7 ER Ready
+                      </div>
+                    </div>
+                    <button
+                      id="btn-solution-direct-hospital"
+                      type="button"
+                      onClick={() => {
+                        setSelectedFacility(rankedFacilities[0]);
+                        showFeedback(`Opening ${rankedFacilities[0].name}`);
+                        go(5);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs shrink-0 active:scale-95"
+                    >
+                      View Details →
+                    </button>
+                  </div>
+                )}
+
+                {/* Instant Emergency Action Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#d8eaf6]">
+                  <button
+                    id="btn-solution-call-emergency"
+                    type="button"
+                    onClick={() => {
+                      SoundFX.codeBlueAlarm();
+                      const primary = getPrimaryEmergencyContact(emergencyContacts);
+                      dialPhoneNumber(primary.phone);
+                      showFeedback(`Calling ${primary.name} (${primary.phone})...`);
+                    }}
+                    className="py-2 px-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                    title="Auto-call primary emergency contact"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" />
+                    <span>Auto-Call Contact</span>
+                  </button>
+                  <button
+                    id="btn-direct-hospital-nav"
+                    className="cb-btn text-xs py-2 px-2"
+                    style={{ margin: 0 }}
+                    onClick={() => {
+                      showFeedback(`Navigating to ${selectedFacility.name} (Matched by Gemini)`);
+                      go(4);
+                    }}
+                  >
+                    Find Facilities →
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1451,6 +1953,31 @@ export const CareBridgeApp: React.FC<CareBridgeAppProps> = ({
             {current === 10 ? '↻ Restart' : 'Next →'}
           </button>
         </div>
+
+        {/* Modal for Dedicated Emergency Flow matching user's screenshots */}
+        {showSpecializedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
+            <div className="relative w-full max-w-[430px] my-auto">
+              <SpecializedEmergencyHub
+                hospitals={hospitals}
+                defaultSection={specializedSection}
+                onClose={() => setShowSpecializedModal(false)}
+                onDispatchPatient={({ triageResult: tr, hospital: hosp, ambulanceDispatched: amb, specializedDispatch: spec }) => {
+                  if (onDispatchPatient) {
+                    onDispatchPatient({
+                      triageResult: tr,
+                      hospital: hosp,
+                      ambulanceDispatched: amb,
+                      specializedDispatch: spec,
+                    });
+                  }
+                  showFeedback(`🚨 Dispatched to ${hosp.name}! Ambulance en route.`);
+                  setShowSpecializedModal(false);
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
