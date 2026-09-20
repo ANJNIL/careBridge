@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CareBridge — Emergency Healthcare Navigator</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#eaf2f8;color:#17324d}
+.app{width:min(440px,100vw);min-height:100vh;margin:auto;background:#f7fbfe;position:relative;overflow:hidden;box-shadow:0 0 35px #7890a533}
+.screen{display:none;min-height:100vh;padding:40px 18px 92px;animation:fade .25s ease}
+.screen.active{display:block}
+@keyframes fade{from{opacity:.25;transform:translateX(12px)}to{opacity:1;transform:none}}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.back{border:0;background:transparent;font-size:24px;cursor:pointer;color:#244a69;padding:4px}
+.title{font-weight:800;font-size:16px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:48px;height:48px;border-radius:15px;background:#e7f4ff;display:grid;place-items:center;font-size:28px}
+.brand{font-weight:900;font-size:20px}.sub{font-size:11px;color:#6b8193}
+.lang{margin-left:auto;border:1px solid #c9dce9;background:white;border-radius:15px;padding:7px 10px;font-size:12px;cursor:pointer}
+.hero{margin-top:18px;text-align:center;background:linear-gradient(180deg,#eaf6ff,#dcecf7);border-radius:28px;padding:22px 15px}
+.heart{font-size:55px}.hero h1{font-size:26px;margin:5px 0}.hero p{color:#60788c;margin:4px 0}
+.card{background:white;border:1px solid #dceaf2;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 5px 16px #45657a0c}
+.input-card{display:flex;align-items:center;gap:12px;cursor:pointer}.icon{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#e6f5ff;font-size:22px}
+.red{background:#ed1c2f;color:white;border:0}.red .small{color:#ffe7ea}.emergency{border-radius:16px;padding:18px;font-weight:800;font-size:17px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tile{padding:15px 10px;text-align:center;background:white;border:1px solid #dceaf2;border-radius:15px;font-size:12px;font-weight:700;cursor:pointer}
+.mic-wrap{text-align:center;margin:30px 0}.mic{width:105px;height:105px;border-radius:50%;margin:auto;background:#0c73d1;color:white;display:grid;place-items:center;font-size:44px;box-shadow:0 0 0 16px #dceeff,0 0 0 32px #edf7ff;cursor:pointer;transition:.2s}
+.mic.recording{background:#dc2626;box-shadow:0 0 0 16px #fee2e2,0 0 0 32px #fef2f2;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+.listen{text-align:center;font-weight:800;font-size:19px;margin-top:40px}
+.wave{height:40px;display:flex;justify-content:center;align-items:center;gap:4px;margin-top:12px}.wave i{width:3px;background:#3d91d6;border-radius:5px;animation:b 1s infinite ease-in-out}.wave i:nth-child(2n){height:18px}.wave i:nth-child(3n){height:35px}.wave i:nth-child(4n){height:12px}@keyframes b{50%{transform:scaleY(.45)}}
+.btn{width:100%;border:0;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer;background:#0873d1;color:white;margin-top:10px;transition:.15s}.btn:active{transform:scale(0.98)}.btn.secondary{background:white;color:#17618f;border:1px solid #c9deec}.btn.green{background:#11a86b}.btn.redbtn{background:#df1728}
+.chat{background:#edf6fc;border-radius:16px;padding:14px;margin:16px 0}.bubble{background:white;border-radius:15px;padding:12px;margin-bottom:10px;font-size:14px}.bubble.me{margin-left:30px;background:#dff0ff;font-weight:600}
+.check{padding:7px 0;font-size:13px;display:flex;align-items:center}.check b{color:#16a66a;margin-right:8px;font-size:15px}
+.info{background:#f5fbff;border:1px solid #d6e8f2;border-radius:16px;padding:15px;margin-top:12px}.row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px}.urgent{background:#ffe7e9;color:#bd1020;padding:15px;border-radius:13px;font-weight:800}.urgent.moderate{background:#fef3c7;color:#92400e}.urgent.minor{background:#dcfce7;color:#166534}.warning{background:#fff5e7;border-radius:12px;padding:13px;margin-top:10px;color:#795c2c;font-size:13px}
+.facility{cursor:pointer;transition:.15s}.facility:hover{border-color:#0873d1}.facility h3{margin:0;font-size:15px}.muted{color:#71879a;font-size:12px;margin-top:4px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tag{font-size:10px;padding:4px 8px;border-radius:8px;background:#edf7ff;color:#1771af;font-weight:700}.tag.redtag{background:#ffe7e9;color:#c21a2a}
+.hospital-img{height:130px;border-radius:16px;background:linear-gradient(135deg,#75aebf,#d9edf2 55%,#89b1bc);display:grid;place-items:center;font-size:50px;margin-bottom:12px}
+.map{height:250px;border-radius:18px;background:#e9eef0;position:relative;overflow:hidden;border:1px solid #d4e0e6}
+.map:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(25deg,transparent 0 35px,#fff8 36px 38px),repeating-linear-gradient(115deg,transparent 0 48px,#fff8 49px 51px)}
+.route{position:absolute;left:18%;bottom:20%;width:65%;height:65%;border-left:5px solid #0873d1;border-bottom:5px solid #0873d1;border-radius:50% 0 0 50%;transform:rotate(18deg)}.pin{position:absolute;font-size:24px}.pin.start{left:10%;bottom:12%}.pin.end{right:8%;top:10%}
+.cost{font-size:20px;font-weight:900;color:#c51b2b}
+.progress{height:6px;background:#dcebf5;border-radius:10px;overflow:hidden;margin:0 0 14px}.progress span{display:block;height:100%;background:#0873d1;transition:.3s}
+.small{font-size:12px;color:#71879a}
+.nextbar{position:fixed;bottom:0;width:min(440px,100vw);padding:10px 16px;background:#ffffffee;border-top:1px solid #dce9f1;z-index:20}
+.spinner{border:3px solid #f3f3f3;border-top:3px solid #0873d1;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+textarea{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;font-size:14px;resize:none;font-family:inherit;box-sizing:border-box}
+pre{background:#1e293b;color:#f8fafc;padding:12px;border-radius:10px;white-space:pre-wrap;font-size:12px;line-height:1.45;font-family:monospace}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SCREEN 0: HOME -->
+<section class="screen active" data-title="Home">
+  <div class="logo">
+    <div class="logo-mark">❤️‍🩹</div>
+    <div><div class="brand">CareBridge</div><div class="sub">Emergency Healthcare Navigator</div></div>
+    <button class="lang">🌐 हिंदी / En</button>
+  </div>
+  <div class="hero">
+    <div class="heart">💗</div>
+    <h1>Your Health is<br>Our Priority</h1>
+    <p>Fast guidance when every second matters.</p>
+  </div>
+  <div class="card input-card" onclick="go(1)">
+    <div class="icon">🎙️</div>
+    <div style="flex:1"><b>Tell your problem...</b><div class="small">Tap to speak or type in Hindi / English</div></div>
+    <b style="color:#0873d1">›</b>
+  </div>
+  <div class="emergency red" onclick="triggerPresetEmergency('Severe chest pain and collapse')">
+    🚨 <span>EMERGENCY<br><small class="small">Tap for immediate critical triage</small></span> ›
+  </div>
+  <div class="grid">
+    <div class="tile" onclick="go(4)">🏥<br>24/7 Facilities<br>& Emergency</div>
+    <div class="tile" onclick="alert('Blood Bank Network: Connecting to nearest donor registry')">🩸<br>Blood Bank<br>Availability</div>
+    <div class="tile" onclick="alert('Pharmacies: Finding nearest 24/7 open pharmacy')">💊<br>Pharmacies<br>(24×7 Open)</div>
+    <div class="tile" onclick="go(9)">👨‍👩‍👦<br>Share Location<br>with Family</div>
+  </div>
+</section>
+
+<!-- SCREEN 1: INPUT SCREEN -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(0)">←</button><div class="title">Tell Your Problem</div></div>
+  <div class="mic-wrap">
+    <div id="micBtn" class="mic" onclick="toggleSpeechRecognition()">🎙️</div>
+    <div id="listenStatus" class="listen">Tap mic to speak</div>
+    <div class="small">Speak clearly in Hindi, Hinglish, or English</div>
+    <div id="waveAnim" class="wave" style="display:none"> <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+  <textarea id="transcriptInput" rows="3" placeholder="Or type symptoms here (e.g. Mere papa ko saans lene me dikkat ho rahi hai aur chest me pain hai)"></textarea>
+  <button id="analyzeBtn" class="btn" onclick="startTriageAnalysis()">⚡ Analyze & Find Help</button>
+  <div class="card" style="margin-top:14px">
+    <b>💡 Quick Emergency Presets:</b>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <button class="tag" style="border:0;cursor:pointer" onclick="setSampleText('Mere seene me bohot tez dard ho raha hai aur saans phool rahi hai')">Chest Pain (Hindi)</button>
+      <button class="tag" style="border:0;cursor:pointer" onclick="setSampleText('Motorcycle accident with severe bleeding from leg and fracture')">Accident (Trauma)</button>
+      <button class="tag" style="border:0;cursor:pointer" onclick="setSampleText('Minor ankle sprain while running, slight pain')">Ankle Sprain (Minor)</button>
+    </div>
+  </div>
+</section>
+
+<!-- SCREEN 2: ANALYZING SCREEN -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(1)">←</button><div class="title">CareBridge AI Analysis</div></div>
+  <div class="chat">
+    <div class="bubble" id="analyzingRawText">“...”</div>
+    <div class="bubble me" id="analyzingLanguage">Language: Detected</div>
+  </div>
+  <div class="check"><b>✓</b> <span id="statusBhashini">Translating via Bhashini Engine...</span></div>
+  <div class="check"><b>✓</b> <span id="statusAgent">Evaluating urgency via Antigravity Agent...</span></div>
+  <div class="check"><b>✓</b> <span id="statusSupabase">Matching 24/7 specialized facilities in Supabase...</span></div>
+  
+  <div class="info">
+    <b>🔎 Triage Synthesis</b>
+    <div class="row"><span>Urgency Priority</span><b id="infoUrgency">Analyzing...</b></div>
+    <div class="row"><span>Indicated Specialty</span><b id="infoSpecialty">Analyzing...</b></div>
+    <div class="row"><span>24/7 Hospitals</span><b id="infoHospitalsCount">Searching...</b></div>
+  </div>
+  <div class="card small">⚕️ <b>Strict Safety Rule:</b> We are non-diagnostic. We assess emergency severity and route you to verified hospitals.</div>
+  <button id="viewResultsBtn" class="btn redbtn" style="display:none" onclick="go(3)">View Emergency Guidance →</button>
+</section>
+
+<!-- SCREEN 3: EMERGENCY DETECTED -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(2)">←</button><div class="title">Triage Assessment</div></div>
+  <div id="urgentBadge" class="urgent">
+    🚨 <span id="urgencyTitle">HIGH URGENCY</span><br>
+    <small id="urgencySubtitle">Seek immediate medical evaluation.</small>
+  </div>
+  <div class="warning" id="urgencyWarning">
+    ⚠️ These distress indicators require swift attention. The system has automatically alerted matched 24/7 facilities.
+  </div>
+  <h3>Recommended Next Actions</h3>
+  <div class="card"><b>1.</b> Review matched specialized facilities below</div>
+  <div class="card"><b>2.</b> Call hospital or start route navigation</div>
+  <div class="card"><b>3.</b> Present generated SBAR handover card at ER desk</div>
+  <button class="btn redbtn" onclick="go(4)">View Nearby Facilities (<span id="matchedCountBtn">0</span>) →</button>
+</section>
+
+<!-- SCREEN 4: NEARBY FACILITIES -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(3)">←</button><div class="title">Nearby 24/7 Emergency Facilities</div></div>
+  <div class="small">📍 Your Location<br><b>GPS Active · Filtered by 24/7 Open & <span id="currentSpecialtyFilter">Specialty</span></b></div>
+  
+  <div id="hospitalsListContainer" style="margin-top:10px">
+    <!-- Populated dynamically from backend response -->
+  </div>
+</section>
+
+<!-- SCREEN 5: HOSPITAL DETAILS -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(4)">←</button><div class="title">Facility Details</div></div>
+  <div class="hospital-img">🏥</div>
+  <h2 id="detailHospName" style="font-size:17px;margin:4px 0">Hospital Name</h2>
+  <div id="detailHospAddress" class="muted">📍 Address</div>
+  <div id="detailHospTags" class="tags"></div>
+  
+  <h3>Immediate Contact</h3>
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+    <span id="detailHospPhone" style="font-weight:700">📞 +91-XX-XXXX</span>
+    <a id="detailHospCallLink" href="tel:" class="btn" style="width:auto;padding:8px 16px;margin:0;text-decoration:none">📞 Call Now</a>
+  </div>
+
+  <h3>Facility Verification</h3>
+  <div class="check"><b>✓</b> Verified 24/7 Emergency Room</div>
+  <div class="check"><b>✓</b> On-call Specialist Team Ready</div>
+  <div class="check"><b>✓</b> Direct Ambulance Bay Access</div>
+
+  <div class="grid" style="margin-top:15px">
+    <button class="btn redbtn" onclick="go(6)">🗺️ Directions</button>
+    <button class="btn" onclick="go(7)">📋 ER Handover</button>
+  </div>
+</section>
+
+<!-- SCREEN 6: ROUTE TO HOSPITAL -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(5)">←</button><div class="title">Live Route to Facility</div></div>
+  <div class="map"><div class="route"></div><div class="pin start">🔵</div><div class="pin end">📍</div></div>
+  <div class="card">
+    <b id="routeHospName">Selected Hospital</b>
+    <div id="routeHospDist" class="muted">📍 ETA: ~8 mins</div>
+  </div>
+  <div class="grid">
+    <button class="btn" onclick="openExternalNavigation()">🚗 Open Google Maps</button>
+    <button class="btn secondary" onclick="go(9)">↗ Share Route</button>
+  </div>
+</section>
+
+<!-- SCREEN 7: SBAR ER HANDOFF CARD -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(5)">←</button><div class="title">Clinical SBAR ER Handover</div></div>
+  <div class="urgent" style="margin-bottom:12px">
+    📋 ER INTAKE HANDOVER CARD<br>
+    <small>Structured report for triage nurse & emergency doctor</small>
+  </div>
+  
+  <div class="card">
+    <div class="row"><span>Triage Priority</span><b id="sbarUrgencyBadge">CRITICAL</b></div>
+    <div class="row"><span>Indicated Specialty</span><b id="sbarSpecialtyBadge">Cardiac</b></div>
+    <div class="row"><span>Clinical Advisory</span><b>Non-Diagnostic</b></div>
+  </div>
+
+  <h3>Structured SBAR Details</h3>
+  <pre id="sbarContentText">Loading SBAR Handover...</pre>
+  
+  <button class="btn green" onclick="shareSbarWhatsApp()">📲 Send to ER / Family via WhatsApp</button>
+  <button class="btn secondary" onclick="copySbarClipboard()">📋 Copy SBAR to Clipboard</button>
+</section>
+
+<!-- SCREEN 8: OFFLINE MODE SCREEN -->
+<section class="screen">
+  <div class="offline">
+    <div style="font-size:55px">📡</div>
+    <h2>Offline Mode Active</h2>
+    <p>Using local resilient cache</p>
+    <div class="card" style="color:#17324d;text-align:left">
+      <b>Available Offline:</b>
+      <div class="check">✓ Instant Emergency Categorization</div>
+      <div class="check">✓ Pre-loaded 24/7 Hospital Directory</div>
+      <div class="check">✓ Offline SBAR Protocol Generation</div>
+    </div>
+    <button class="btn" onclick="go(0)">Back to Home</button>
+  </div>
+</section>
+
+<!-- SCREEN 9: SHARE WITH FAMILY -->
+<section class="screen">
+  <div class="top"><button class="back" onclick="go(0)">←</button><div class="title">Emergency Broadcast</div></div>
+  <div class="card" style="background:#e8fff4">
+    <b>🟢 Emergency Alert Formatted</b>
+    <p class="small">Pre-formatted message with your location and hospital route.</p>
+  </div>
+  <div class="card">
+    <b>Pre-composed Message:</b>
+    <p id="familyMsgPreview" style="font-size:13px;color:#1e293b">“EMERGENCY: Seeking medical care at nearest 24/7 center. Please check live tracking link.”</p>
+  </div>
+  <button class="btn green" onclick="shareSbarWhatsApp()">📲 Send via WhatsApp</button>
+  <button class="btn secondary" onclick="go(0)">Done</button>
+</section>
+
+<!-- NAVIGATION BAR -->
+<div class="nextbar">
+  <div class="progress"><span id="progressBar"></span></div>
+</div>
+
+</div>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:8000/api/v1/agent/triage";
+
+const screens = [...document.querySelectorAll('.screen')];
+let current = 0;
+let lastTriageResult = null;
+let selectedHospital = null;
+
+function go(n) {
+  current = Math.max(0, Math.min(screens.length - 1, n));
+  screens.forEach((s, i) => s.classList.toggle('active', i === current));
+  const pct = ((current + 1) / screens.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+  window.scrollTo(0, 0);
+}
+
+function setSampleText(txt) {
+  document.getElementById('transcriptInput').value = txt;
+}
+
+function triggerPresetEmergency(text) {
+  setSampleText(text);
+  go(1);
+  startTriageAnalysis();
+}
+
+// Web Speech API Integration
+let recognition = null;
+let isRecording = false;
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'hi-IN'; // Recognizes Hindi and Hinglish
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('listenStatus').textContent = "Listening... Speak now";
+    document.getElementById('waveAnim').style.display = "flex";
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById('transcriptInput').value = transcript;
+    document.getElementById('listenStatus').textContent = "Captured!";
+  };
+
+  recognition.onerror = (event) => {
+    console.warn("Speech recognition error:", event.error);
+    document.getElementById('listenStatus').textContent = "Tap to retry or type below";
+    stopRecordingUI();
+  };
+
+  recognition.onend = () => {
+    stopRecordingUI();
+  };
+}
+
+function stopRecordingUI() {
+  isRecording = false;
+  document.getElementById('micBtn').classList.remove('recording');
+  document.getElementById('waveAnim').style.display = "none";
+}
+
+function toggleSpeechRecognition() {
+  if (!recognition) {
+    alert("Speech recognition is not supported in this browser. Please type symptoms into the box.");
+    return;
+  }
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn("Recognition already started");
+    }
+  }
+}
+
+// Call Live FastAPI Backend
+async function startTriageAnalysis() {
+  const input = document.getElementById('transcriptInput').value.trim();
+  if (!input) {
+    alert("Please enter or speak emergency symptoms first.");
+    return;
+  }
+
+  go(2); // Go to Analyzing screen
+  document.getElementById('analyzingRawText').textContent = `"${input}"`;
+  document.getElementById('statusBhashini').textContent = "Translating speech/text via Bhashini...";
+  document.getElementById('statusAgent').textContent = "Invoking Google Antigravity Agent...";
+  document.getElementById('statusSupabase').textContent = "Querying 24/7 hospitals in Supabase...";
+  document.getElementById('viewResultsBtn').style.display = "none";
+
+  try {
+    const response = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcribed_text: input })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    lastTriageResult = data;
+    renderTriageData(data);
+  } catch (err) {
+    console.error("Backend triage error:", err);
+    alert("Could not reach backend at " + BACKEND_URL + ". Ensure 'python -m uvicorn app.main:app' is running!");
+  }
+}
+
+function renderTriageData(data) {
+  // Update Screen 2
+  document.getElementById('statusBhashini').textContent = `Translated: ${data.translated_text.substring(0, 45)}...`;
+  document.getElementById('statusAgent').textContent = `Agent assessed: ${data.urgency_level} (${data.specialty})`;
+  document.getElementById('statusSupabase').textContent = `Found ${data.hospitals.length} matching 24/7 facilities`;
+  
+  document.getElementById('infoUrgency').textContent = data.urgency_level;
+  document.getElementById('infoSpecialty').textContent = data.specialty;
+  document.getElementById('infoHospitalsCount').textContent = `${data.hospitals.length} Open 24/7`;
+  document.getElementById('viewResultsBtn').style.display = "block";
+
+  // Update Screen 3
+  const badge = document.getElementById('urgentBadge');
+  badge.className = "urgent";
+  if (data.urgency_level === 'Critical') {
+    document.getElementById('urgencyTitle').textContent = "CRITICAL URGENCY";
+    document.getElementById('urgencySubtitle').textContent = "Immediate life-safety measures required.";
+  } else if (data.urgency_level === 'Moderate') {
+    badge.classList.add('moderate');
+    document.getElementById('urgencyTitle').textContent = "MODERATE URGENCY";
+    document.getElementById('urgencySubtitle').textContent = "Urgent medical evaluation recommended.";
+  } else {
+    badge.classList.add('minor');
+    document.getElementById('urgencyTitle').textContent = "MINOR / ROUTINE";
+    document.getElementById('urgencySubtitle').textContent = "Non-emergency clinical guidance.";
+  }
+  document.getElementById('matchedCountBtn').textContent = data.hospitals.length;
+
+  // Update Screen 4
+  document.getElementById('currentSpecialtyFilter').textContent = data.specialty;
+  const container = document.getElementById('hospitalsListContainer');
+  container.innerHTML = '';
+
+  data.hospitals.forEach((hosp, idx) => {
+    const card = document.createElement('div');
+    card.className = "card facility";
+    card.onclick = () => selectHospital(hosp);
+
+    const tagsHtml = hosp.specialties.map(s => `<span class="tag ${s === 'Emergency' ? 'redtag' : ''}">${s}</span>`).join('');
+    
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <h3>🏥 ${hosp.name}</h3>
+        <span style="font-weight:700;color:#0873d1;font-size:12px">${hosp.distance_km} km</span>
+      </div>
+      <div class="muted">🟢 Open 24×7 · 📍 ${hosp.address}</div>
+      <div class="tags">${tagsHtml}</div>
+      <div style="margin-top:10px;font-size:12px;font-weight:700;color:#0873d1">View Details & Navigation →</div>
+    `;
+    container.appendChild(card);
+  });
+
+  if (data.hospitals.length > 0) {
+    selectHospital(data.hospitals[0], false);
+  }
+
+  // Update Screen 7 (SBAR Card)
+  document.getElementById('sbarUrgencyBadge').textContent = data.urgency_level.toUpperCase();
+  document.getElementById('sbarSpecialtyBadge').textContent = data.specialty;
+  document.getElementById('sbarContentText').textContent = data.sbar_handover;
+
+  // Update Screen 9 (Family Message)
+  const hospName = data.hospitals[0] ? data.hospitals[0].name : "Emergency Center";
+  document.getElementById('familyMsgPreview').textContent = 
+    `EMERGENCY ALERT: Seeking care for "${data.original_text}". Priority: ${data.urgency_level}. Heading to: ${hospName}. Please call or check tracking.`;
+}
+
+function selectHospital(hosp, navigate = true) {
+  selectedHospital = hosp;
+  document.getElementById('detailHospName').textContent = hosp.name;
+  document.getElementById('detailHospAddress').textContent = `📍 ${hosp.address} (${hosp.distance_km} km away)`;
+  document.getElementById('detailHospPhone').textContent = `📞 ${hosp.contact_number}`;
+  document.getElementById('detailHospCallLink').href = `tel:${hosp.contact_number}`;
+  
+  const tagsDiv = document.getElementById('detailHospTags');
+  tagsDiv.innerHTML = hosp.specialties.map(s => `<span class="tag ${s === 'Emergency' ? 'redtag' : ''}">${s}</span>`).join('');
+
+  document.getElementById('routeHospName').textContent = hosp.name;
+  document.getElementById('routeHospDist').textContent = `📍 ${hosp.distance_km} km · ETA: ~${Math.round(hosp.distance_km * 3 + 2)} mins`;
+
+  if (navigate) {
+    go(5);
+  }
+}
+
+function openExternalNavigation() {
+  if (selectedHospital) {
+    const query = encodeURIComponent(`${selectedHospital.name} ${selectedHospital.address}`);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+  }
+}
+
+function shareSbarWhatsApp() {
+  if (!lastTriageResult) return;
+  const msg = encodeURIComponent(
+    `*CareBridge Emergency Handover*\n` +
+    `*Urgency:* ${lastTriageResult.urgency_level}\n` +
+    `*Specialty:* ${lastTriageResult.specialty}\n\n` +
+    `${lastTriageResult.sbar_handover}`
+  );
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
+}
+
+function copySbarClipboard() {
+  if (lastTriageResult && navigator.clipboard) {
+    navigator.clipboard.writeText(lastTriageResult.sbar_handover);
+    alert("SBAR Handover copied to clipboard!");
+  }
+}
+</script>
+</body>
+</html>
